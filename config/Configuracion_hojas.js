@@ -3,16 +3,17 @@
 // =============================================================
 // REEMPLAZA ESTE ID CON EL ID DE TU HOJA DE CÁLCULO
 // Lo encuentras en la URL: https://docs.google.com/spreadsheets/d/[ESTE_ID]/edit
-const SPREADSHEET_ID = "1wxwsPAfLZPv4d0aW6txQ49UkW30ojRht8yI6QJyk-d0";
+// El ID de la hoja se recibirá dinámicamente por parámetro en doGet
+let SPREADSHEET_ID = null;
 
 // =============================================================
 // 🔹 FUNCIÓN HELPER PARA OBTENER EL SPREADSHEET
 // =============================================================
-function getSpreadsheet() {
-  if (!SPREADSHEET_ID || SPREADSHEET_ID === "T1wxwsPAfLZPv4d0aW6txQ49UkW30ojRht8yI6QJyk-d0") {
-    throw new Error("⚠️ ERROR: Debes configurar el SPREADSHEET_ID en Configuracion_hojas.js");
+function getSpreadsheet(idHoja) {
+  if (!idHoja) {
+    throw new Error("⚠️ ERROR: Debes enviar el parámetro id_hoja en la URL");
   }
-  return SpreadsheetApp.openById(SPREADSHEET_ID);
+  return SpreadsheetApp.openById(idHoja);
 }
 
 // --- CONFIGURACIÓN PARA FACTURAS, BOLETAS, NC (Hoja: cabecera) ---

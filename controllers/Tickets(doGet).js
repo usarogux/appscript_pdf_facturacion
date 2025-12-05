@@ -8,16 +8,17 @@ function doGet(e) {
   template.ambiente = e.parameter.ambiente;
   template.accion = e.parameter.accion;
   template.formato = e.parameter.formato;
+  template.idHoja = e.parameter.id_hoja;
   return template.evaluate().setXFrameOptionsMode(HtmlService.XFrameOptionsMode.ALLOWALL);
 }
 
 // MODIFICADO: La función ahora acepta 'formato' y tiene la lógica de selección.
-function procesarFacturaDesdeHoja(idFila, ambiente, accion, formato) {
+function procesarFacturaDesdeHoja(idFila, ambiente, accion, formato, idHoja) {
   // Si 'formato' no llega, le asignamos 'ticket' por defecto para no romper las URLs antiguas.
   formato = formato || 'ticket'; 
   Logger.log(`Iniciando Proceso de Factura. Acción: ${accion}, Formato: ${formato}`);
 
-  const sheet = getSpreadsheet().getSheetByName(HOJA_DATOS_FACTURA);
+  const sheet = getSpreadsheet(idHoja).getSheetByName(HOJA_DATOS_FACTURA);
   let numeroDeFila = -1;
   try {
     const data = sheet.getDataRange().getValues();

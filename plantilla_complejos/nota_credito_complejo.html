@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title><?= transaccion_numero ?></title>
+    <link rel="preconnect" href="https://fonts.gstatic.com">
+    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
+    <style>
+        /* ================================================= */
+        /* === CONFIGURACIÓN GENERAL Y DE PÁGINA === */
+        /* ================================================= */
+        body {
+            font-family: 'Roboto', Arial, sans-serif;
+            line-height: 1.2;
+            margin: 0;
+            padding: 0;
+            font-size: 10px;
+            color: #000;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 10px;
+            box-sizing: border-box;
+        }
+
+        @media print {
+            @page {
+                size: A4;
+                margin: 1cm;
+            }
+            .section-title, #items-table th, .resaltado { 
+                background-color: <?= th_co ?> !important; 
+                -webkit-print-color-adjust: exact; 
+                print-color-adjust: exact; 
+            }
+        }
+
+        /* ================================================= */
+        /* === ENCABEZADO Y PIE DE PÁGINA FIJOS === */
+        /* ================================================= */
+        .header, .header-space { height: 95px; }
+        .footer, .footer-space { height: 95px; }
+
+        .header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            background-color: #fff;
+            padding: 10px;
+            box-sizing: border-box;
+            z-index: 999;
+        }
+
+        .footer {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            padding: 10px;
+            background-color: #fff;
+            font-size: 8px;
+            text-align: center;
+            box-sizing: border-box;
+        }
+        
+        #qr-fixed {
+            position: fixed;
+            bottom: 0mm;
+            left: 0mm;
+            width: 85px;
+            height: 85px;
+            z-index: 1000;
+        }
+
+        /* ================================================= */
+        /* === SECCIONES DE INFORMACIÓN (Cliente, etc.) === */
+        /* ================================================= */
+        .header-grid {
+            display: grid;
+            grid-template-columns: 200px 1fr 200px;
+            gap: 10px;
+            align-items: start;
+        }
+
+        .company-info {
+            text-align: center;
+            font-size: 10px;
+        }
+
+        .document-info {
+            text-align: center;
+            border: 2px solid #000;
+            border-radius: 10px;
+            padding: 5px;
+            font-weight: bold;
+        }
+        .document-title { font-size: 11px; font-weight: bold; margin-bottom: 5px; }
+        .document-number { font-size: 14px; font-weight: bold; color:  #ff0000; } /* Color dinámico */
+        
+        .bordered-section {
+            border: 1px solid #000;
+            margin: 10px 0;
+            border-radius: 10px;
+            padding: 5px;
+        }
+
+        .transporter-grid {
+            display: grid;
+            grid-template-columns: 65% 35%;
+            gap: 4%;
+            padding: 7px;
+        }
+        
+        .info-item {
+            display: flex;
+            flex-wrap: wrap;
+            margin-bottom: 3px;
+            align-items: baseline;
+        }
+
+        .info-item span:last-child {
+    flex: 1;padding-right: 5px;
+}
+
+        .info-label {
+            font-weight: bold;
+            margin-right: 3px;
+            width: 100px;
+        }
+        .full-width-item {
+    grid-column: span 2;
+}
+
+        /* ================================================= */
+        /* === TABLA DE ÍTEMS === */
+        /* ================================================= */
+        table#items-table {
+            width: 100%;
+            margin: 10px 0;
+            border-collapse: collapse;
+            border: 1px solid #000;
+        }
+
+        table#items-table th, table#items-table td {
+            border: 0.5px solid #333333;
+            padding: 4px 5px;
+            font-size: 9px;
+        }
+
+        table#items-table th {
+            background-color: <?= th_co ?>; /* Color dinámico */
+            color: white;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        /* Anchos de columna */
+        table#items-table th:nth-child(1), table#items-table td:nth-child(1) { width: 7%; text-align: center; } /* CODIGO */
+        table#items-table th:nth-child(2), table#items-table td:nth-child(2) { width: 27%; } /* DESCRIPCIÓN */
+        table#items-table th:nth-child(3), table#items-table td:nth-child(3) { width: 8%; text-align: center; } /* CANTIDAD */
+        table#items-table th:nth-child(4), table#items-table td:nth-child(4) { width: 6%; text-align: center; } /* UM */
+        table#items-table td:nth-child(5){ text-align: right; width: 8%; }
+         table#items-table td:nth-child(6){ text-align: right; width: 8%; }
+         table#items-table td:nth-child(7){ text-align: right; width: 9%; }
+        table#items-table td:nth-child(8) { text-align: right; width: 9%; }
+        table#items-table td:nth-child(9) { text-align: right; width: 9%; }
+        table#items-table td:nth-child(10)  { text-align: right; width: 9%; }
+
+        /* ================================================= */
+        /* === SECCIÓN DE TOTALES Y RESUMEN FINAL === */
+        /* ================================================= */
+        .summary-section {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 20px;
+            align-items: flex-start;
+            page-break-inside: avoid;
+        }
+
+        .summary-left { width: 65%; }
+        .summary-right { width: 32%; }
+
+        .tabla-montos {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+            border: 1.5px solid #000;
+            border-radius: 8px;
+            overflow: hidden;
+            font-size: 10px;
+        }
+        .tabla-montos td { border: none; padding: 3px 5px; }
+        .tabla-montos td:nth-child(2) { text-align: center; }
+        .tabla-montos td:nth-child(3) { text-align: right; }
+        .tabla-montos td + td { border-left: 1.5px solid #000; }
+        .tabla-montos tr + tr td { border-top: 1.5px solid #000; }
+        .resaltado { 
+            background-color: <?= th_co ?>; /* Color dinámico */
+            color: white; 
+            font-weight: bold; 
+        }
+
+    </style>
+</head>
+<body>
+
+    <div class="header">
+        <div class="header-grid">
+            <img src="" alt="Logo" id="logo" style="width: auto; height: 80px; max-width: 200px;">
+            <div class="company-info">
+                <div style="font-size: 16px; font-weight: bold;"><?= cp_tit ?></div>
+                <div><?= cp_dir1 ?></div>
+                <div><?= cp_dir2 ?></div>
+                <div><?= cp_dir3 ?></div>
+                <div><?= cp_dir4 ?></div>
+                <div><?= cp_dir5  ?></div>
+            </div>
+            <div class="document-info">
+                <div>RUC: <?= negocio_ruc ?></div>
+                <div class="document-title">NOTA DE CRÉDITO<br>ELECTRÓNICA</div>
+                <div class="document-number"><?= transaccion_numero ?></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="footer">
+        <p>Representación impresa de la NOTA DE CRÉDITO ELECTRÓNICA</p>
+        <p>Autorizado mediante RESOLUCIÓN DE INTENDENCIA: 0340050008568/SUNAT</p>
+    </div>
+
+    <table>
+        <thead>
+            <tr><td><div class="header-space"></div></td></tr>
+        </thead>
+        <tbody>
+            <tr><td>
+                <div class="container">
+
+                    <div class="bordered-section">
+                        <div class="transporter-grid">
+                            <div class="info-item"><span class="info-label">Cliente:</span><span><?= anexo_nombre ?></span></div>
+                            <div class="info-item"><span class="info-label">Fecha Emisión:</span><span><?= fecha_emi ?></span></div>
+                            <div class="info-item"><span class="info-label"><?= anexo_documento_nombre ?>:</span><span><?= anexo_ruc ?></span></div>
+                            <div class="info-item"><span class="info-label">Moneda:</span><span><?= moneda_texto ?></span></div>
+                            <div class="info-item full-width-item"><span class="info-label">Dirección:</span><span><?= anexo_dir ?></span></div>
+                        </div>
+                    </div>
+
+                    <div class="bordered-section">
+                        <div class="transporter-grid">
+                            <div class="info-item"><span class="info-label">Documento Modificado:</span><span><?= doc_relacionado01 ?></span></div>
+                            <div class="info-item"><span class="info-label">Fecha del Documento:</span><span><?= doc_relacionado_fecha ?></span></div>
+                           <div class="info-item full-width-item"><span class="info-label">Observacion:</span><span><?= observacion01 ?></span></div>
+                        </div>
+                    </div>
+
+                    <table id="items-table">
+                        <thead>
+                            <tr>
+                               <th>CÓDIGO</th>
+                                <th>DESCRIPCIÓN</th>
+                                <th>CANT</th>
+                                <th>UM</th>
+                                <th>VALOR UNITARIO</th>
+                                <th>DESCUENTO</th>
+                                <th>PRECIO UNITARIO</th>
+                                <th>VALOR VENTA TOTAL</th>
+                                <th>IGV</th>
+                                <th>PRECIO TOTAL</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <?!= filas_detalle ?>
+                        </tbody>
+                    </table>
+
+                    <div class="summary-section">
+                        <div class="summary-left">
+                            <strong>SON: <?= tot_letras_appscript ?></strong>
+                            <p style="margin-top: 20px;"><strong>Motivo de la emisión:</strong><br><?= motivo_nombre ?></p>
+                        </div>
+
+                        <div class="summary-right">
+                            <table class="tabla-montos">
+                                <tbody>
+                                    <tr><td class="resaltado">SUBTOTAL</td><td><?= moneda_simbolo ?></td><td><?= subtotal_ventas ?></td></tr>
+                                    <tr><td class="resaltado">DESCUENTOS</td><td><?= moneda_simbolo ?></td><td><?= descuentos ?></td></tr>
+                                    <tr><td class="resaltado">IGV (18%)</td><td><?= moneda_simbolo ?></td><td><?= igv ?></td></tr>
+                                    <tr><td class="resaltado"><strong>TOTAL</strong></td><td><strong><?= moneda_simbolo ?></strong></td><td><strong><?= total_venta ?></strong></td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+
+                </div></td></tr>
+        </tbody>
+        <tfoot>
+            <tr><td><div class="footer-space"></div></td></tr>
+        </tfoot>
+    </table>
+
+    <? if (imagen_qr_respuesta && imagen_qr_respuesta !== "") { ?>
+        <img id="qr-fixed" src="<?= imagen_qr_respuesta ?>" alt="Código QR">
+    <? } ?>
+   <script>
+     // SCRIPT PARA EL LOGO
+     var imagen_logo = "<?= logo ?>";
+     if (imagen_logo) {
+         document.getElementById("logo").src = imagen_logo;
+     }
+   </script>
+   <script>
+     // SCRIPT PARA EL QR
+     var qrBase64 = "<?= imagen_qr_respuesta ?>";
+     if (qrBase64) {
+         document.getElementById("qr-fixed").src = qrBase64;
+     }
+   </script>
+</body>
+</html>

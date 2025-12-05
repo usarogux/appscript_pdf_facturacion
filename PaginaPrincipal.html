@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <base target="_top">
+    <style>
+      body { font-family: Arial, sans-serif; text-align: center; margin-top: 50px; }
+      #loader { border: 8px solid #f3f3f3; border-top: 8px solid #3498db; border-radius: 50%; width: 60px; height: 60px; animation: spin 1s linear infinite; margin: 20px auto; }
+      @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+      #loader-text { font-weight: bold; color: #555; }
+      #status { margin-top: 20px; font-size: 1.2em; font-weight: bold; padding: 0 15px; }
+      .status-success { color: #2ecc71; }
+      .status-error { color: #e74c3c; }
+      .action-button { 
+        display: none; 
+        margin: 20px auto; 
+        padding: 15px 30px; 
+        font-size: 16px; 
+        font-weight: bold;
+        cursor: pointer; 
+        border-radius: 8px; 
+        background-color: #4CAF50; 
+        color: white; 
+        border: none; 
+        box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        transition: all 0.3s ease;
+      }
+      .action-button:hover {
+        background-color: #45a049;
+        transform: translateY(-2px);
+        box-shadow: 0 6px 12px rgba(0,0,0,0.3);
+      }
+      .action-button:active {
+        transform: translateY(0);
+      }
+      #invoice-container { margin-top: 30px; }
+
+      /* --- Regla CSS para la Impresión --- */
+      @media print {
+        .no-print {
+          display: none !important; /* Oculta cualquier elemento con esta clase al imprimir */
+        }
+      }
+    </style>
+</head>
+<body>
+    <div id="loader" class="no-print"></div>
+    <h2 id="loader-text" class="no-print">Procesando...</h2>
+    <div id="status" class="no-print"></div>
+    <button id="actionButton" class="action-button no-print" style="display:none;">Imprimir Comprobante</button>
+
+    <div id="invoice-container"></div>
+
+    <script>
+      let retryCount = 0;
+      const maxRetries = 7;
+      let pdfLink = '';
+      let autoPrintEnabled = true; // ← CONTROL: true = auto-print, false = botón manual
+      let printCheckInterval;
+      let printTimeout;
+
+      document.addEventListener("DOMContentLoaded", function() {
+        callServer();
+      });
+
+      function callServer() {
+        const idDeLaFila = "<?= idFila ?>";
+        const tipoDeDoc = "<?= tipoDoc ?>";
+        const ambiente = "<?= ambiente ?>";
+        const accion = "<?= accion ?>";
+        const formato = "<?= formato ?>";
+
+        if (!idDeLaFila) {
+          onFailure({message: "No se proporcionó un ID de fila. La URL no es correcta."});
+          return;
+        }
+        
+        let funcionDelServidor;
+        if (tipoDeDoc === 'SAL' || tipoDeDoc === 'ING') {
+          funcionDelServidor = 'procesarGuiaDesdeHoja';
+          document.getElementById('loader-text').innerText = 'Generando Guía de Remisión...';
+        }else if (tipoDeDoc === 'CO') { 
+          funcionDelServidor = 'procesarCotizacionDesdeHoja';
+          document.getElementById('loader-text').innerText = 'Generando Cotización...';
+         }else {
+          funcionDelServidor = 'procesarFacturaDesdeHoja';
+          document.getElementById('loader-text').innerText = 'Procesando Comprobante...';
+        }
+        
+        google.script.run
+          .withSuccessHandler(onSuccess)
+          .withFailureHandler(onFailure)
+          [funcionDelServidor](idDeLaFila, ambiente, accion,formato);
+      }
+
+      function onSuccess(respuesta) {
+        if (respuesta.status === 'RETRY') {
+          retryCount++;
+          if (retryCount >= maxRetries) {
+            onFailure({message: "Los datos no se sincronizaron a tiempo. Intente de nuevo."});
+          } else {
+            document.getElementById('loader-text').innerText = 'Preparando datos... ' + '.' + '';
+            setTimeout(callServer, 1500);
+          }
+          return;
+        }
+
+        document.getElementById('loader').style.display = 'none';
+        document.getElementById('loader-text').style.display = 'none';
+        const statusDiv = document.getElementById('status');
+        const actionButton = document.getElementById('actionButton');
+
+        if (respuesta.status === 'Éxito') {
+          statusDiv.innerHTML = '✅ ' + respuesta.sunat_description;
+          statusDiv.className = 'status-success no-print';
+
+          if (respuesta.pdfUrl) {
+            pdfLink = respuesta.pdfUrl;
+            actionButton.innerText = 'Abrir PDF Generado';
+            actionButton.onclick = function() { window.open(pdfLink, '_blank'); };
+            actionButton.style.display = 'inline-block';
+          
+          } else if (respuesta.htmlComprobante) {
+            document.getElementById('invoice-container').innerHTML = respuesta.htmlComprobante;
+            
+            // ═══ NUEVA LÓGICA: AUTO-PRINT ROBUSTO ═══
+            if (autoPrintEnabled) {
+              iniciarImpresionRobusta();
+            } else {
+              // ═══ FALLBACK: FUNCIONALIDAD ORIGINAL ═══
+              mostrarBotonImpresion();
+            }
+          }
+          
+        } else {
+          statusDiv.innerHTML = '❌ Error: ' + respuesta.message;
+          statusDiv.className = 'status-error no-print';
+        }
+      }
+
+      function onFailure(error) {
+        document.getElementById('loader').style.display = 'none';
+        document.getElementById('loader-text').style.display = 'none';
+        const statusDiv = document.getElementById('status');
+        statusDiv.innerHTML = '❌ Error Crítico: ' + error.message;
+        statusDiv.className = 'status-error no-print';
+      }
+      
+      // ═══════════════════════════════════════════════════════════════
+      // 🚀 SISTEMA DE IMPRESIÓN AUTOMÁTICA ROBUSTA
+      // ═══════════════════════════════════════════════════════════════
+      
+      function iniciarImpresionRobusta() {
+        console.log('🎯 Iniciando impresión automática robusta...');
+        
+        // Mostrar botón de fallback (oculto inicialmente)
+        const actionButton = document.getElementById('actionButton');
+        actionButton.innerText = 'Imprimir Manualmente (si no se imprime auto)';
+        actionButton.onclick = function() { window.print(); };
+        actionButton.style.display = 'none'; // Oculto hasta que sea necesario
+        
+        // Configurar timeout de seguridad (10 segundos)
+        printTimeout = setTimeout(() => {
+          console.log('⏰ Timeout alcanzado. Activando fallback...');
+          activarFallback('Tiempo límite alcanzado');
+        }, 10000);
+        
+        // Iniciar verificaciones múltiples
+        verificarYImprimir();
+      }
+      
+      function verificarYImprimir() {
+        let intentos = 0;
+        const maxIntentos = 20; // 20 intentos x 250ms = 5 segundos
+        
+        printCheckInterval = setInterval(() => {
+          intentos++;
+          
+          const todoListo = verificarCondiciones();
+          
+          if (todoListo) {
+            console.log('✅ Todas las condiciones cumplidas. Imprimiendo...');
+            clearInterval(printCheckInterval);
+            clearTimeout(printTimeout);
+            
+            // Imprimir automáticamente
+            setTimeout(() => {
+              window.print();
+              // Mostrar botón permanente después de imprimir
+              mostrarBotonPermanente();
+            }, 500); // Pequeño delay final para seguridad
+            
+          } else if (intentos >= maxIntentos) {
+            console.log('❌ Máximo de intentos alcanzado. Activando fallback...');
+            clearInterval(printCheckInterval);
+            clearTimeout(printTimeout);
+            activarFallback('No se completaron las verificaciones');
+          }
+          
+        }, 250); // Verificar cada 250ms
+      }
+      
+      function verificarCondiciones() {
+        // ✅ 1. Verificar que el contenedor tenga contenido
+        const container = document.getElementById('invoice-container');
+        if (!container || container.innerHTML.trim().length < 100) {
+          console.log('⏳ Esperando contenido del comprobante...');
+          return false;
+        }
+        
+        // ✅ 2. Verificar elementos clave del comprobante
+        const elementosClave = container.querySelectorAll('table, .total, h1, h2, h3');
+        if (elementosClave.length === 0) {
+          console.log('⏳ Esperando elementos clave del documento...');
+          return false;
+        }
+        
+        // ✅ 3. Verificar que las imágenes estén cargadas (si existen)
+        const imagenes = container.querySelectorAll('img');
+        for (let img of imagenes) {
+          if (!img.complete || img.naturalWidth === 0) {
+            console.log('⏳ Esperando carga de imágenes...');
+            return false;
+          }
+        }
+        
+        // ✅ 4. Verificar que no haya elementos vacíos críticos
+        const elementosTexto = container.querySelectorAll('.total-amount, .document-number, .date');
+        for (let elem of elementosTexto) {
+          if (elem && elem.textContent.trim() === '') {
+            console.log('⏳ Esperando datos completos...');
+            return false;
+          }
+        }
+        
+        // ✅ 5. Verificar que los estilos se hayan aplicado
+        const primeraTabla = container.querySelector('table');
+        if (primeraTabla) {
+          const estilos = window.getComputedStyle(primeraTabla);
+          if (estilos.display === 'none') {
+            console.log('⏳ Esperando aplicación de estilos...');
+            return false;
+          }
+        }
+        
+        console.log('🎯 Todas las verificaciones pasaron!');
+        return true;
+      }
+      
+      function activarFallback(razon) {
+        console.log('🔄 Activando modo fallback. Razón:', razon);
+        
+        // Mostrar mensaje explicativo
+        const statusDiv = document.getElementById('status');
+        statusDiv.innerHTML += '<br><small style="color: #ff9800;">⚠️ Modo manual activado: ' + razon + '</small>';
+        
+        // Mostrar botón permanente
+        mostrarBotonPermanente();
+      }
+      
+      // ═══════════════════════════════════════════════════════════════
+      // 📤 FUNCIONALIDAD ORIGINAL (FALLBACK)
+      // ═══════════════════════════════════════════════════════════════
+      
+      function mostrarBotonPermanente() {
+        const actionButton = document.getElementById('actionButton');
+        actionButton.innerText = '🖨️ Volver a Imprimir';
+        actionButton.onclick = function() { window.print(); };
+        actionButton.style.display = 'inline-block';
+        actionButton.style.backgroundColor = '#2196F3'; // Azul para distinguir
+        console.log('📋 Botón permanente de impresión activado');
+      }
+      
+      function mostrarBotonImpresion() {
+        const actionButton = document.getElementById('actionButton');
+        actionButton.innerText = 'Imprimir Comprobante';
+        actionButton.onclick = function() { window.print(); };
+        actionButton.style.display = 'inline-block';
+      }
+
+      window.addEventListener('afterprint', (event) => {
+        if (!pdfLink) {
+          // Opcional: cerrar automáticamente después de imprimir
+          // setTimeout(() => window.close(), 1000);
+        }
+      });
+    </script>
+</body>
+</html>
